@@ -15,12 +15,12 @@ const sessionMiddleware = session({
 });
 
 const USERS = {
-  alice:  { password: 'pass1', displayName: 'Alice' },
-  bob:    { password: 'pass2', displayName: 'Bob' },
-  carol:  { password: 'pass3', displayName: 'Carol' },
-  dave:   { password: 'pass4', displayName: 'Dave' },
-  eve:    { password: 'pass5', displayName: 'Eve' },
-  frank:  { password: 'pass6', displayName: 'Frank' },
+  simeon:  { password: 'pass1', displayName: 'Simeon' },
+  martin:  { password: 'pass2', displayName: 'Martin' },
+  tim:     { password: 'pass3', displayName: 'Tim' },
+  lars:    { password: 'pass4', displayName: 'Lars' },
+  arturo:  { password: 'pass5', displayName: 'Arturo' },
+  felix:   { password: 'pass6', displayName: 'Felix' },
 };
 
 const io = new Server(server);
