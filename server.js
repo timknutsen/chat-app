@@ -34,8 +34,10 @@ if (process.env.USERS_CONFIG) {
 }
 
 const io = new Server(server);
-const onlineUsers = new Map(); // socketId -> username
-const messages = [];          // in-memory message history (last 100)
+const onlineUsers = new Map();
+const messages = [];
+const reactionUsers = new Map(); // msgId -> { emoji -> Set(displayName) }
+let msgCounter = 0;
 
 app.use(sessionMiddleware);
 app.use(express.json());
@@ -71,10 +73,7 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   const username = socket.request.session?.username;
-  if (!username || !USERS[username]) {
-    socket.disconnect(true);
-    return;
-  }
+  if (!username || !USERS[username]) { socket.disconnect(true); return; }
 
   const displayName = USERS[username].displayName;
   onlineUsers.set(socket.id, username);
@@ -86,13 +85,33 @@ io.on('connection', (socket) => {
   socket.on('message', (text) => {
     if (typeof text !== 'string' || !text.trim()) return;
     const msg = {
+      id: ++msgCounter,
       displayName,
       text: text.trim().slice(0, 1000),
       time: new Date().toISOString(),
+      reactions: {},
     };
     messages.push(msg);
     if (messages.length > 100) messages.shift();
     io.emit('message', msg);
+  });
+
+  socket.on('react', ({ msgId, emoji }) => {
+    if (!['👍', '❤️'].includes(emoji)) return;
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg) return;
+
+    if (!reactionUsers.has(msgId)) reactionUsers.set(msgId, {});
+    const byEmoji = reactionUsers.get(msgId);
+    if (!byEmoji[emoji]) byEmoji[emoji] = new Set();
+
+    const users = byEmoji[emoji];
+    if (users.has(displayName)) { users.delete(displayName); } else { users.add(displayName); }
+
+    msg.reactions = Object.fromEntries(
+      Object.entries(byEmoji).map(([e, s]) => [e, s.size]).filter(([, c]) => c > 0)
+    );
+    io.emit('reaction', { msgId, reactions: msg.reactions });
   });
 
   socket.on('disconnect', () => {
