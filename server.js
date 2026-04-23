@@ -14,7 +14,7 @@ const sessionMiddleware = session({
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 });
 
-const USERS = {
+const USERS_DEFAULT = {
   simeon:  { password: 'pass1', displayName: 'Simeon' },
   martin:  { password: 'pass2', displayName: 'Martin' },
   tim:     { password: 'pass3', displayName: 'Tim' },
@@ -22,6 +22,16 @@ const USERS = {
   arturo:  { password: 'pass5', displayName: 'Arturo' },
   felix:   { password: 'pass6', displayName: 'Felix' },
 };
+
+let USERS = USERS_DEFAULT;
+if (process.env.USERS_CONFIG) {
+  try {
+    USERS = JSON.parse(process.env.USERS_CONFIG);
+    console.log('Loaded users from USERS_CONFIG env var');
+  } catch (e) {
+    console.warn('Failed to parse USERS_CONFIG, using defaults:', e.message);
+  }
+}
 
 const io = new Server(server);
 const onlineUsers = new Map(); // socketId -> username
