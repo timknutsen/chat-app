@@ -43,10 +43,23 @@
     #login-error { color: #e94560; font-size: .85rem; margin-top: 8px; text-align: center; min-height: 1.2em; }
 
     .hint {
-      margin-top: 20px; padding: 12px; background: #0f3460;
-      border-radius: 6px; font-size: .78rem; color: #aaa; line-height: 1.6;
+      margin-top: 20px; padding: 16px; background: #0f3460;
+      border: 1px solid #1a4a8a; border-radius: 8px;
     }
-    .hint strong { color: #e0e0e0; }
+    .hint-title {
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: #e94560; margin-bottom: 10px;
+    }
+    .hint-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    }
+    .hint-row {
+      display: flex; align-items: center; gap: 8px;
+      background: #16213e; border-radius: 5px; padding: 6px 10px;
+    }
+    .hint-name { font-size: .88rem; color: #e0e0e0; font-weight: 600; }
+    .hint-sep  { color: #555; font-size: .8rem; }
+    .hint-pass { font-size: .82rem; color: #888; font-family: monospace; }
 
     /* ── Chat ── */
     #chat-screen {
@@ -146,9 +159,15 @@
   <button id="login-btn">Sign in</button>
   <div id="login-error"></div>
   <div class="hint">
-    <strong>Users:</strong><br>
-    simeon / pass1 &nbsp; martin / pass2 &nbsp; tim / pass3<br>
-    lars / pass4 &nbsp; arturo / pass5 &nbsp; felix / pass6
+    <div class="hint-title">Login credentials</div>
+    <div class="hint-grid">
+      <div class="hint-row"><span class="hint-name">simeon</span><span class="hint-sep">/</span><span class="hint-pass">pass1</span></div>
+      <div class="hint-row"><span class="hint-name">martin</span><span class="hint-sep">/</span><span class="hint-pass">pass2</span></div>
+      <div class="hint-row"><span class="hint-name">tim</span>   <span class="hint-sep">/</span><span class="hint-pass">pass3</span></div>
+      <div class="hint-row"><span class="hint-name">lars</span>  <span class="hint-sep">/</span><span class="hint-pass">pass4</span></div>
+      <div class="hint-row"><span class="hint-name">arturo</span><span class="hint-sep">/</span><span class="hint-pass">pass5</span></div>
+      <div class="hint-row"><span class="hint-name">felix</span> <span class="hint-sep">/</span><span class="hint-pass">pass6</span></div>
+    </div>
   </div>
 </div>
 
