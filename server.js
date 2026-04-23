@@ -92,7 +92,10 @@ io.on('connection', (socket) => {
       reactions: {},
     };
     messages.push(msg);
-    if (messages.length > 100) messages.shift();
+    if (messages.length > 100) {
+      const removed = messages.shift();
+      reactionUsers.delete(removed.id);
+    }
     io.emit('message', msg);
   });
 
