@@ -294,8 +294,15 @@
     currentUser.textContent = displayName;
     loginScreen.style.display = 'none';
     chatScreen.style.display  = 'flex';
+    if (Notification.permission === 'default') Notification.requestPermission();
     connectSocket();
     msgInput.focus();
+  }
+
+  function notify(title, body) {
+    if (Notification.permission !== 'granted' || focused) return;
+    const n = new Notification(title, { body: body.length > 100 ? body.slice(0, 97) + '…' : body });
+    n.onclick = () => { window.focus(); n.close(); };
   }
 
   // ── Logout ──
@@ -323,7 +330,7 @@
     socket.on('message', (msg) => {
       appendMessage(msg);
       scrollBottom();
-      if (msg.displayName !== myDisplayName) bumpUnread();
+      if (msg.displayName !== myDisplayName) { bumpUnread(); notify(msg.displayName, msg.text); }
     });
 
     socket.on('system', (text) => {
@@ -350,7 +357,7 @@
       if (existing) { updatePollCard(existing, poll); return; }
       appendPoll(poll);
       scrollBottom();
-      if (poll.creator !== myDisplayName) bumpUnread();
+      if (poll.creator !== myDisplayName) { bumpUnread(); notify(`Poll by ${poll.creator}`, poll.question); }
     });
   }
 
