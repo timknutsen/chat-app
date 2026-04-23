@@ -175,6 +175,8 @@
       font-size: .9rem; transition: background .2s;
     }
     #send-btn:hover { background: #c73652; }
+    #vote-hint { padding: 0 20px 10px; font-size: .72rem; color: #555; }
+    #vote-hint code { color: #888; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -207,6 +209,7 @@
       <input id="msg-input" type="text" placeholder="Type a message or /vote Question…" maxlength="1000" />
       <button id="send-btn">Send</button>
     </div>
+    <div id="vote-hint">📊 Poll: <code>/vote Question</code> &nbsp;·&nbsp; Custom options: <code>/vote Question | A | B | C</code></div>
   </div>
 </div>
 
