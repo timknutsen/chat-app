@@ -84,7 +84,7 @@ Everything is in-memory. No database. Server restart clears all messages, reacti
 
 | Event | Payload | Validation |
 |---|---|---|
-| `message` | `{ text: string }` | string, max 1000 chars |
+| `message` | `string` | plain string (not wrapped), max 1000 chars |
 | `react` | `{ msgId: number, emoji: string }` | emoji must be in allowlist (`👍`, `❤️`) |
 | `create-poll` | `{ question: string, options: string[] }` | 2–5 options |
 | `vote-poll` | `{ pollId: number, optionIndex: number }` | poll must exist and be open |
@@ -94,7 +94,7 @@ Everything is in-memory. No database. Server restart clears all messages, reacti
 
 | Event | Payload | When |
 |---|---|---|
-| `history` | `messages[]` + `polls[]` (open) | On connect (sent only to joining socket) |
+| `history` | unified array of messages and polls in chronological order (polls have `type: 'poll'`) | On connect (sent only to joining socket) |
 | `message` | message object | New message (broadcast to all) |
 | `system` | string | User join/leave (broadcast to all) |
 | `online` | `string[]` (display names) | Online list changes (broadcast to all) |
