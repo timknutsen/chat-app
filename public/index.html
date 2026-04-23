@@ -127,6 +127,37 @@
     }
     .reaction-pill:hover { background: #1a4a8a; }
 
+    /* Polls */
+    .poll-card {
+      align-self: stretch; max-width: 100%;
+      background: #0d2a4a; border: 1px solid #1a4a8a;
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .poll-meta { font-size: .72rem; color: #888; margin-bottom: 6px; }
+    .poll-question { font-size: .95rem; font-weight: 600; color: #e0e0e0; margin-bottom: 12px; }
+    .poll-options { display: flex; flex-direction: column; gap: 8px; }
+    .poll-option { display: flex; align-items: center; gap: 10px; }
+    .poll-option-btn {
+      flex-shrink: 0; min-width: 64px;
+      padding: 5px 12px; border-radius: 6px;
+      background: #16213e; border: 1px solid #1a4a8a;
+      color: #e0e0e0; font-size: .85rem; cursor: pointer;
+      transition: background .15s, border-color .15s; text-align: center;
+    }
+    .poll-option-btn.voted { background: #e94560; border-color: #e94560; color: #fff; }
+    .poll-option-btn:disabled { cursor: default; }
+    .poll-bar-wrap { flex: 1; background: #16213e; border-radius: 4px; height: 8px; overflow: hidden; }
+    .poll-bar { background: #e94560; height: 100%; border-radius: 4px; transition: width .3s; }
+    .poll-count { font-size: .8rem; color: #aaa; min-width: 28px; text-align: right; }
+    .poll-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .poll-total { font-size: .75rem; color: #888; }
+    .poll-close-btn {
+      padding: 3px 10px; background: transparent;
+      border: 1px solid #e94560; color: #e94560; border-radius: 5px;
+      font-size: .75rem; cursor: pointer; transition: background .15s;
+    }
+    .poll-close-btn:hover { background: #e94560; color: #fff; }
+
     /* Input */
     #input-row {
       display: flex; gap: 10px; padding: 14px 20px;
@@ -173,7 +204,7 @@
     <div id="chat-header">General</div>
     <div id="messages"></div>
     <div id="input-row">
-      <input id="msg-input" type="text" placeholder="Type a message…" maxlength="1000" />
+      <input id="msg-input" type="text" placeholder="Type a message or /vote Question…" maxlength="1000" />
       <button id="send-btn">Send</button>
     </div>
   </div>
@@ -187,6 +218,7 @@
   let unread = 0;
   let focused = true;
   const baseTitle = 'Chat';
+  const myVotes = new Map(); // pollId -> optionIndex (client-local, resets on reload)
 
   const loginScreen = document.getElementById('login-screen');
   const chatScreen  = document.getElementById('chat-screen');
@@ -284,10 +316,19 @@
       const wrap = messagesEl.querySelector(`[data-msg-id="${msgId}"]`);
       if (wrap) updatePills(wrap, msgId, reactions);
     });
+
+    socket.on('poll', (poll) => {
+      const existing = messagesEl.querySelector(`[data-poll-id="${poll.id}"]`);
+      if (existing) { updatePollCard(existing, poll); return; }
+      appendPoll(poll);
+      scrollBottom();
+      if (poll.creator !== myDisplayName) bumpUnread();
+    });
   }
 
   // ── Messages ──
   function appendMessage(msg) {
+    if (msg.type === 'poll') { appendPoll(msg); return; }
     const mine = msg.displayName === myDisplayName;
     const wrap = document.createElement('div');
     wrap.className = `msg ${mine ? 'mine' : 'other'}`;
@@ -321,6 +362,53 @@
     });
   }
 
+  // ── Polls ──
+  function appendPoll(poll) {
+    const card = document.createElement('div');
+    card.className = 'poll-card';
+    card.dataset.pollId = poll.id;
+    messagesEl.appendChild(card);
+    updatePollCard(card, poll);
+  }
+
+  function updatePollCard(card, poll) {
+    const total = Object.values(poll.counts).reduce((a, b) => a + b, 0);
+    const myVote = myVotes.has(poll.id) ? myVotes.get(poll.id) : null;
+    const isMine = poll.creator === myDisplayName;
+
+    card.innerHTML = `
+      <div class="poll-meta">📊 Poll by ${escHtml(poll.creator)}</div>
+      <div class="poll-question">${escHtml(poll.question)}</div>
+      <div class="poll-options">
+        ${poll.options.map((opt, i) => {
+          const count = poll.counts[i] || 0;
+          const pct = total ? Math.round(count / total * 100) : 0;
+          return `<div class="poll-option">
+            <button class="poll-option-btn${myVote === i ? ' voted' : ''}" data-idx="${i}"${poll.closed ? ' disabled' : ''}>${escHtml(opt)}</button>
+            <div class="poll-bar-wrap"><div class="poll-bar" style="width:${pct}%"></div></div>
+            <span class="poll-count">${count}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="poll-footer">
+        <span class="poll-total">${poll.closed ? 'Closed' : `${total} vote${total !== 1 ? 's' : ''}`}</span>
+        ${isMine && !poll.closed ? `<button class="poll-close-btn">Close poll</button>` : ''}
+      </div>
+    `;
+
+    if (!poll.closed) {
+      card.querySelectorAll('.poll-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx);
+          if (myVotes.get(poll.id) === idx) { myVotes.delete(poll.id); } else { myVotes.set(poll.id, idx); }
+          socket.emit('vote-poll', { pollId: poll.id, optionIndex: idx });
+        });
+      });
+      const closeBtn = card.querySelector('.poll-close-btn');
+      if (closeBtn) closeBtn.addEventListener('click', () => socket.emit('close-poll', { pollId: poll.id }));
+    }
+  }
+
   function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
 
   function escHtml(s) {
@@ -334,6 +422,16 @@
   function sendMessage() {
     const text = msgInput.value.trim();
     if (!text || !socket) return;
+    if (text.startsWith('/vote ')) {
+      const rest = text.slice(6).trim();
+      if (!rest) return;
+      const parts = rest.split('|').map(s => s.trim()).filter(Boolean);
+      const question = parts[0];
+      const options = parts.length > 1 ? parts.slice(1) : ['Yes', 'No'];
+      socket.emit('create-poll', { question, options });
+      msgInput.value = '';
+      return;
+    }
     socket.emit('message', text);
     msgInput.value = '';
   }

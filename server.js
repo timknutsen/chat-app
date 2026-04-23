@@ -39,6 +39,15 @@ const messages = [];
 const reactionUsers = new Map(); // msgId -> { emoji -> Set(displayName) }
 let msgCounter = 0;
 
+const polls = new Map(); // pollId -> poll object
+let pollCounter = 0;
+
+function serializePoll(poll) {
+  const counts = {};
+  poll.options.forEach((_, i) => { counts[i] = poll.votes[i] ? poll.votes[i].size : 0; });
+  return { id: poll.id, type: 'poll', question: poll.question, options: poll.options, counts, creator: poll.creator, closed: poll.closed, time: poll.time };
+}
+
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -78,7 +87,7 @@ io.on('connection', (socket) => {
   const displayName = USERS[username].displayName;
   onlineUsers.set(socket.id, username);
 
-  socket.emit('history', messages.slice(-100));
+  socket.emit('history', messages.slice(-100).map(m => m.type === 'poll' ? serializePoll(m) : m));
   io.emit('online', [...new Set(onlineUsers.values())].map(u => USERS[u].displayName));
   io.emit('system', `${displayName} joined the chat`);
 
@@ -115,6 +124,56 @@ io.on('connection', (socket) => {
       Object.entries(byEmoji).map(([e, s]) => [e, s.size]).filter(([, c]) => c > 0)
     );
     io.emit('reaction', { msgId, reactions: msg.reactions });
+  });
+
+  socket.on('create-poll', ({ question, options }) => {
+    try {
+      if (typeof question !== 'string' || !question.trim()) return;
+      const opts = Array.isArray(options) && options.length >= 2
+        ? options.slice(0, 5).map(o => String(o).trim().slice(0, 100)).filter(Boolean)
+        : ['Yes', 'No'];
+      if (opts.length < 2) return;
+      const poll = {
+        id: ++pollCounter,
+        type: 'poll',
+        question: question.trim().slice(0, 300),
+        options: opts,
+        votes: {},
+        creator: displayName,
+        closed: false,
+        time: new Date().toISOString(),
+      };
+      opts.forEach((_, i) => { poll.votes[i] = new Set(); });
+      polls.set(poll.id, poll);
+      messages.push(poll);
+      if (messages.length > 100) {
+        const removed = messages.shift();
+        reactionUsers.delete(removed.id);
+        if (removed.type === 'poll') polls.delete(removed.id);
+      }
+      io.emit('poll', serializePoll(poll));
+    } catch (e) { console.error('create-poll error:', e); }
+  });
+
+  socket.on('vote-poll', ({ pollId, optionIndex }) => {
+    try {
+      const poll = polls.get(pollId);
+      if (!poll || poll.closed) return;
+      if (typeof optionIndex !== 'number' || optionIndex < 0 || optionIndex >= poll.options.length) return;
+      const alreadyVoted = poll.votes[optionIndex] && poll.votes[optionIndex].has(displayName);
+      poll.options.forEach((_, i) => { if (poll.votes[i]) poll.votes[i].delete(displayName); });
+      if (!alreadyVoted) poll.votes[optionIndex].add(displayName);
+      io.emit('poll', serializePoll(poll));
+    } catch (e) { console.error('vote-poll error:', e); }
+  });
+
+  socket.on('close-poll', ({ pollId }) => {
+    try {
+      const poll = polls.get(pollId);
+      if (!poll || poll.creator !== displayName || poll.closed) return;
+      poll.closed = true;
+      io.emit('poll', serializePoll(poll));
+    } catch (e) { console.error('close-poll error:', e); }
   });
 
   socket.on('disconnect', () => {
