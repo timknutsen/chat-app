@@ -27,8 +27,6 @@ node server.js
 
 Open at http://localhost:3000. Open multiple tabs to simulate multiple users.
 
-Default credentials: `simeon/pass1`, `martin/pass2`, `tim/pass3`, `lars/pass4`, `arturo/pass5`, `felix/pass6`
-
 ## Deploying
 
 ```bash
