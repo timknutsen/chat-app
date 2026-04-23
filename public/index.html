@@ -23,7 +23,7 @@
       border: 1px solid #0f3460;
       border-radius: 12px;
       padding: 40px 48px;
-      width: 360px;
+      width: min(360px, calc(100vw - 32px));
       box-shadow: 0 8px 32px rgba(0,0,0,.4);
     }
     #login-screen h1 { font-size: 1.6rem; margin-bottom: 24px; text-align: center; color: #e94560; }
@@ -46,7 +46,7 @@
     #chat-screen {
       display: none;
       flex-direction: row;
-      width: 900px; height: 600px;
+      width: min(900px, 100vw); height: min(600px, 100dvh);
       background: #16213e;
       border: 1px solid #0f3460;
       border-radius: 12px;
@@ -177,6 +177,31 @@
     #send-btn:hover { background: #c73652; }
     #vote-hint { padding: 0 20px 10px; font-size: .72rem; color: #555; }
     #vote-hint code { color: #888; font-family: monospace; }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      body { align-items: flex-start; }
+
+      #login-screen { margin: auto; padding: 32px 24px; }
+
+      #chat-screen {
+        width: 100vw; height: 100dvh;
+        border-radius: 0; border: none; box-shadow: none;
+      }
+
+      #sidebar { display: none; }
+
+      .msg { max-width: 90%; }
+      #messages { padding: 12px 14px; }
+      #chat-header { padding: 12px 14px; }
+      #input-row { padding: 10px 12px; }
+      #vote-hint { padding: 0 12px 8px; }
+    }
+
+    /* Touch devices: show reaction buttons without hover */
+    @media (hover: none) {
+      .reaction-bar { display: flex; }
+    }
   </style>
 </head>
 <body>
