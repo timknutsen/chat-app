@@ -15,7 +15,7 @@ Open multiple browser tabs to simulate multiple users. Login with any credential
 
 - **Server**: Express 5, Socket.io 4, express-session (in-memory store)
 - **Client**: Single HTML file at [public/index.html](public/index.html) — no build step, no framework
-- **Deployment**: Railway via `start` script, `PORT` env var
+- **Deployment**: Railway. `git push` then `railway up --detach`; `railway logs` for build/runtime output. Live at https://chat-app-production-1225.up.railway.app
 
 ## File structure
 
@@ -85,7 +85,7 @@ Everything is in-memory. No database. Server restart clears all messages, reacti
 | Event | Payload | Validation |
 |---|---|---|
 | `message` | `string` | plain string (not wrapped), max 1000 chars |
-| `react` | `{ msgId: number, emoji: string }` | emoji must be in allowlist (`👍`, `❤️`) |
+| `react` | `{ msgId: number, emoji: string }` | emoji must be in the server-side allowlist (see `server.js`) |
 | `create-poll` | `{ question: string, options: string[] }` | 2–5 options |
 | `vote-poll` | `{ pollId: number, optionIndex: number }` | poll must exist and be open |
 | `close-poll` | `{ pollId: number }` | requester must be creator |
@@ -94,12 +94,24 @@ Everything is in-memory. No database. Server restart clears all messages, reacti
 
 | Event | Payload | When |
 |---|---|---|
-| `history` | unified array of messages and polls in chronological order (polls have `type: 'poll'`) | On connect (sent only to joining socket) |
+| `history` | mixed array of messages and polls, chronological — see example below | On connect (sent only to joining socket) |
 | `message` | message object | New message (broadcast to all) |
 | `system` | string | User join/leave (broadcast to all) |
 | `online` | `string[]` (display names) | Online list changes (broadcast to all) |
 | `reaction` | `{ msgId, reactions }` | Reaction toggled (broadcast to all) |
 | `poll` | poll object (without `votes`) | Poll created/updated/closed (broadcast to all) |
+
+Example `history` payload — clients dispatch each entry by checking `type === 'poll'`:
+
+```js
+[
+  { id: 1, displayName: 'Tim', text: 'morning', time: '...', reactions: {} },
+  { id: 2, type: 'poll', question: 'lunch?', options: ['yes','no'], counts: {0:1,1:0}, creator: 'Tim', closed: false, time: '...' },
+  { id: 3, displayName: 'Lars', text: 'sure', time: '...', reactions: { '👍': 1 } }
+]
+```
+
+Note: message `id` and poll `id` come from independent counters, so an entry's identity is `(type, id)`, not `id` alone.
 
 ## Users
 
@@ -141,6 +153,16 @@ Single file at `public/index.html`. Inline CSS + JS, no build step, no framework
 | `myVotes` | `Map<pollId, optionIndex>` — local vote tracking, resets on reload |
 | `unread` | Unread message counter, shown in tab title |
 | `focused` | Whether the browser tab is visible (via `visibilitychange`) |
+
+### Browser notifications
+
+On login the client calls `Notification.requestPermission()` if the API exists. While the tab is unfocused, incoming messages and new polls fire a `Notification` (body truncated to 100 chars; clicking refocuses the window). Granting is one-shot per origin — denied permission silently no-ops via the `granted` check in `notify()`. The unread counter in the tab title runs in parallel and works regardless of notification permission.
+
+Both call sites guard with `typeof Notification !== 'undefined'`. iOS browsers (Safari and Chrome alike) do not expose the Web Notifications API outside an installed PWA — without the guard, accessing `Notification.permission` throws `ReferenceError` and aborts `enterChat()` before `connectSocket()` runs, leaving the user with a chat UI but no socket. Keep the guards in place when touching this code.
+
+### Mobile layout
+
+Single breakpoint at `max-width: 600px` in the inline `<style>`: chat fills the viewport (`100dvh`, no border/radius), the online sidebar is hidden, message bubbles widen to 90%, and paddings tighten. A separate `@media (hover: none)` rule keeps reaction buttons visible on touch devices where `:hover` never fires.
 
 ### Key client functions
 
@@ -207,13 +229,15 @@ No test framework yet. Before pushing any change:
 3. Add a reaction — confirm count updates in both tabs, toggles off on re-click
 4. Create a poll with `/vote` — confirm card appears, votes update live, close disables buttons
 5. Refresh one tab — confirm session restores and history loads
+6. Background one tab and post from another — confirm tab-title counter increments and (if permission granted) a desktop notification fires
+7. Open in a narrow window (≤600px) — confirm sidebar hides and chat fills the viewport
 
-To add unit tests: use `node:test` (built-in, no install needed). Extract pure logic functions from socket handlers and test those directly.
+There is no automated test suite. The socket handlers in `server.js` mix validation, state mutation, and broadcasting in the same closure, so adding tests means extracting the pure pieces (e.g. poll option parsing, reaction toggling) into separate functions first.
 
 ## Security notes
 
 - Passwords are plaintext in env vars — acceptable for this internal use case
 - All user content is HTML-escaped via `escHtml()` before insertion into the DOM
-- Emoji reactions are validated against a server-side allowlist (`['👍', '❤️']`)
+- Emoji reactions are validated against a server-side allowlist (defined inline in the `react` handler in `server.js`)
 - Session secret defaults to a hardcoded string; set `SESSION_SECRET` env var in production
 - Socket connections are dropped immediately if the session has no authenticated user

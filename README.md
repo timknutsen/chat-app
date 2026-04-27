@@ -9,7 +9,8 @@ Real-time multi-user chat with reactions and voting polls. Built for the Vibe Fo
 - Real-time messaging via WebSockets
 - Emoji reactions (👍 ❤️) — toggle per user, live counts
 - Voting polls — `/vote Question` or `/vote Question | A | B | C`
-- Tab notifications — unread count in browser title when tab is in background
+- Background notifications — desktop notification (where supported) + unread count in the tab title when the window is unfocused. iOS browsers don't expose the Web Notifications API outside an installed PWA, so iOS users get the tab-title counter only.
+- Mobile layout — sidebar collapses and chat fills the viewport on narrow screens
 - Session persistence — stay logged in on refresh
 
 ## Stack
